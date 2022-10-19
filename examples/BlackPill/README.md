@@ -5,13 +5,14 @@
 
 Recommended `arm-none-eabi-gcc` version: `10.3`
 
-#### Compiling and running the example
-###### Requirements:
+### Compiling and running the example
+#### Requirements:
 - installed [arm-none-eabi-gcc](https://developer.arm.com/downloads/-/gnu-rm)
 - installed [openocd](https://openocd.org/pages/getting-openocd.html)
+- having `STM32F401 BlackPill v3.0` board with `W25Qxx` chip soldered as shown on the picture above
 - having [STLink V2](https://www.st.com/en/development-tools/st-link-v2.html) debug probe (_or anything else, but then `openocd` flags will require tweaking_) [(~$2 on Amazon)](https://www.amazon.com/s?k=st-link-v2)
 - having USB-UART converter like `PL2303` for viewing output [(~$5 on Amazon)](https://www.amazon.com/s?k=PL2303)
-###### Compile and flash application:
+#### Compile and flash application:
 Unix:
 ```bash
 ./build.sh -f
