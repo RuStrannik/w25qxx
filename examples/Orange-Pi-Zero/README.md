@@ -10,6 +10,7 @@ Nevertheless, initializing and reading works just fine, which is enough for this
 
 #### Following steps are required to successfully run this demo,
 
+
 0. Add lines below to `/boot/armbianEnv.txt` to enable `/dev/spidev0.0` 
     ```
     overlays=spi-spidev
