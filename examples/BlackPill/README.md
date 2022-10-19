@@ -1,7 +1,7 @@
 # W25Qxx Universal Driver v2.0
-## Usage example for STM32F401 [BlackPill v3.0 board](https://stm32-base.org/boards/STM32F401CEU6-WeAct-Black-Pill-V3.0)
- 
 ![board with chip soldered](./img/WeAct-STM32F4-BlackPill-V3-0-DemoBoard.jpg)
+
+## Usage example for STM32F401 [BlackPill v3.0 board](https://stm32-base.org/boards/STM32F401CEU6-WeAct-Black-Pill-V3.0)
 
 Recommended `arm-none-eabi-gcc` version: `10.3`
 

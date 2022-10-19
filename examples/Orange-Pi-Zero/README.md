@@ -1,6 +1,9 @@
 # W25Qxx Universal Driver v2.0
-## Usage example for Debian Linux on [Orange Pi Zero board](http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-Zero.html)
+
 ![Orangepi-zero-with-spi-flash-chip](http://www.orangepi.org/img/computersAndMmicrocontrollers/Zero/Rectangle%20641.png) 
+
+## Usage example for Debian Linux on [Orange Pi Zero board](http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-Zero.html)
+
 Starting in 2016, all **Orange Pi Zero** boards have spi flash chip installed by default.
 It is available over `/dev/spidev0.0` interface, which is not enabled by default in [Armbian](https://www.armbian.com/orange-pi-zero/).
 
@@ -9,7 +12,6 @@ This library is currently aimed at working only with `W25Qxxx` chips, which are 
 Nevertheless, initializing and reading works just fine, which is enough for this little demo.
 
 #### Following steps are required to successfully run this demo,
-
 
 0. Add lines below to `/boot/armbianEnv.txt` to enable `/dev/spidev0.0` 
     ```

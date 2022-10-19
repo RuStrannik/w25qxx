@@ -7,7 +7,7 @@ Modern rewrite of popular library.<br/>
 Complete [example implementations](./examples) available for STM32F401 (BlackPill) and Orange PI Zero platforms.  
 Heavily optimized code size, improved execution speed, minimized chip access instruction sequences and RAM usage.
 
-## Features summary
+## Feature summary
 
 - Supported full spectrum of chip functionality (_fast-read_, _SFDP_, _memory block locking_, etc.)
 - Production-ready code with advanced error detection and handling 
