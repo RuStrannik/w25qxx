@@ -58,11 +58,13 @@
 #define DELAY_USE_MS_OVER_US		1000	// when 'x' > 'max_val', use 'delay_ms(x/max_val)' instead of delay_us(x)
 #define RESET_RECOVER_MS			10
 
+
 #ifdef W25QXX_DEBUG
-#	include <stdio.h>
-//#	include "printf-stdarg.h"
-#	define printf_dbg_					printf
-#else
+	extern int printf_dbg(const char *restrict format, ...);
+#	define printf_dbg_ printf_dbg
+//#	include <stdio.h>
+//#	define printf_dbg_ printf
+#elif !defined(printf_dbg_)
 #	define printf_dbg_(...)
 #endif
 
@@ -110,7 +112,7 @@ __attribute__((weak)) unsigned long  bsd_rev32(unsigned long val) { return (((va
 extern void *w25qxx_malloc(size_t size);
 extern void w25qxx_free(void *buf);
 __attribute__((weak)) void *w25qxx_malloc(size_t size) { return malloc(size); };
-__attribute__((weak)) void w25qxx_free(void *buf) { free(buf); };
+__attribute__((weak)) void w25qxx_free(void *buf) { free(buf); buf = NULL; }; // NOTE: no need to check for 'NULL' here, as 'free()' handles that case properly internally
 #endif
 
 //extern const char *const fmt_func_fail; 			__attribute__((weak)) const char *const fmt_func_fail			= "%s(): %s(): Failed\r\n";
@@ -1198,7 +1200,7 @@ W25QXX_RET_t w25qxx_overwrite_verify(w25qxx_dev_t *const dev, uint32_t addr, con
 	uint16_t sect_remain = W25QXX_SECTOR_SIZE - sect_offset;
 	//if (len <= sect_remain) { sect_remain = len; };
 	sect_remain = MIN(sect_remain, len);
-//	printf_dbg_("%s(%p,*data,%uB): sect_remain=%u\r\n", __func__, addr, len, sect_remain);
+	printf_dbg_("%s(%p,*data,%uB): sect_remain=%u\r\n", __func__, addr, len, sect_remain);
 	if (sect_remain == 0) { return W25QXX_RET_SUCCESS; };
 
 	#ifdef W25QXX_DYNAMIC_OVERWRITE_BUFFER
@@ -1209,10 +1211,10 @@ W25QXX_RET_t w25qxx_overwrite_verify(w25qxx_dev_t *const dev, uint32_t addr, con
 	uint8_t *const tmp_buf = dev->ow_buf; // let's hope it's large enough
 	#endif
 
-	 for ( ; sect_remain > 0; ++sect, sect_offset = 0, data += sect_remain, addr += sect_remain, len -= sect_remain, sect_remain = MIN(len, W25QXX_SECTOR_SIZE)) {
-		 //printf_dbg_("%s(): addr=%p; data[%4u/%u]=%16.1A\r\n", __func__, addr, sect_remain, len, data);
+	 for( ; sect_remain > 0; ++sect, sect_offset = 0, data += sect_remain, addr += sect_remain, len -= sect_remain, sect_remain = MIN(len, W25QXX_SECTOR_SIZE)) {
+		//printf_dbg_("%s(): addr=%p; data[%4u/%u]=%16.1A\r\n", __func__, addr, sect_remain, len, data);
 
-//		 printf_dbg_("%s(): Reading %4u bytes @ %p...\r\n", __func__, W25QXX_SECTOR_SIZE, sect * W25QXX_SECTOR_SIZE);
+		printf_dbg_("%s(): Reading %4u bytes @ %p...\r\n", __func__, W25QXX_SECTOR_SIZE, sect * W25QXX_SECTOR_SIZE);
 		ret = w25qxx_cmd_addr(dev, W25QXX_CMD_READ_DATA_FAST, sect * W25QXX_SECTOR_SIZE, tmp_buf, NULL, W25QXX_SECTOR_SIZE); // read 4k block // TODO: (?) Read only block we're going to overwrite. If it's not empty, re-read the whole block.
 		if (ret) { printf_dbg_(fmt_func_fail_ret_desc, __func__, "READ_DATA_FAST1", ret,w25qxx_ret2str(ret)); break; };
 
@@ -1220,7 +1222,7 @@ W25QXX_RET_t w25qxx_overwrite_verify(w25qxx_dev_t *const dev, uint32_t addr, con
 
 		if (i < sect_remain) {																		// if it's not empty, conduct over-writing procedure
 			if (memcmp(&tmp_buf[sect_offset], data, sect_remain) == 0) { printf_dbg_("writing skipped\r\n"); continue; }; // The chunk of data that we're trying to overwrite, exaclty matches content of the chip's memory, so just skip dealing with this chunk of data.
-			//printf_dbg_("%s(): Data[%u] mismatch => cannot skip => need erase @ %p\r\n\tdata_src: %16.1A\r\n\tdata_dst: %16.1A\r\n", __func__, sect_remain, sect * W25QXX_SECTOR_SIZE, data, &tmp_buf[sect_offset]);
+			printf_dbg_("%s(): Data[%u] mismatch => cannot skip => need erase @ %p\r\n\tdata_src: %16.1A\r\n\tdata_dst: %16.1A\r\n", __func__, sect_remain, sect * W25QXX_SECTOR_SIZE, data, &tmp_buf[sect_offset]);
 
 			ret = w25qxx_block_erase(dev, sect * W25QXX_SECTOR_SIZE, W25QXX_BLOCK_SIZE_4K);
 			if (ret) { printf_dbg_(fmt_func_fail_ret_desc, __func__, "w25qxx_block_erase", ret,w25qxx_ret2str(ret)); break; };

@@ -3,11 +3,11 @@
 #include "w25qxx.h"
 
 #define PA(x)					(GPIOA_BASE | x)
-#define PB(x)					(GPIOB_BASE | x)
 #define PC(x)					(GPIOC_BASE | x)
 
 #define LED_BLUE				PC(13)	// BlackPill
 
+#define USART1_BR				115200 // bps
 #define USART1_PIN_RX			PA(10)
 #define USART1_PIN_TX			PA( 9)
 
@@ -26,7 +26,7 @@
 #define LedOff(led)				PinLo(led)
 #define LedTog(led)				PinTog(led)
 
-extern w25qxx_dev_t w25qxx_dev;
+void Init_GPIO_AF(const uint32_t pin, const uint8_t config, const uint8_t alt_func);
 
 void Init_USART1_DBG(uint32_t br);
 void USART_DBG_DataTxGeneric(const void * const USARTx, const char *data, unsigned short msg_len);

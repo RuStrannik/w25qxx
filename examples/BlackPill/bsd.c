@@ -9,13 +9,13 @@
 #define GET_HW_PIN(x)			(1<<((x) & GPIO_PINX_MASK)) // (uint16_t)
 #define GET_HW_PIN_NUM(x)		((x) & GPIO_PINX_MASK)
 #define GET_HW_PORT(x)			((GPIO_TypeDef *) (GPIOX_BASE_MASK & (x)))
-//#define GET_HW_PORT_NUM(x)		((uint8_t) (((x)>>10)-2))
+#define GET_HW_PORT_NUM(x)		((uint8_t) (((x)>>10)-2))
 
-enum {
+enum GPIO_AF_e {
+	GPIO_PF				= 0x00, // use primary function mapping
 	GPIO_AF_SPI1		= 0x05,
 	GPIO_AF_USART1		= 0x07,
 };
-
 enum GPIO_TYPE_e {
 	GPIO_TYPE_IN,	// general Purpose Input
 	GPIO_TYPE_OUT,	// general Purpose Output
@@ -53,6 +53,7 @@ enum GPIO_MODE_e {
 	GPIO_MODE_AF_PP		= (GPIO_TYPE_AF <<2) | (GPIO_OT_PP<<4),										// Alternate Function, push-pull
 //	GPIO_MODE_AF		= (GPIO_TYPE_AF <<2),														// Alternate Function, push-pull
 };
+
 typedef union GPIO_Mode_Struct_t {
 	struct {
 		uint8_t SPD:2,TYPE:2,OTYPE:1,PUPD:2;
@@ -63,7 +64,7 @@ typedef union GPIO_Mode_Struct_t {
 void PinHi(const uint32_t pin)	{ if (pin) { GET_HW_PORT(pin)->BSRRL = GET_HW_PIN(pin); }; };
 void PinLo(const uint32_t pin)	{ if (pin) { GET_HW_PORT(pin)->BSRRH = GET_HW_PIN(pin); }; };
 void PinTog(const uint32_t pin)	{ if (pin) { GET_HW_PORT(pin)->ODR  ^= GET_HW_PIN(pin); }; };
-static void Init_GPIO_AF(const uint32_t pin, const uint8_t config, const uint8_t alt_func) {
+void Init_GPIO_AF(const uint32_t pin, const uint8_t config, const uint8_t alt_func) {
   GPIO_Mode_Struct_t* const cfg = (GPIO_Mode_Struct_t *)&config;
   GPIO_TypeDef* const GPIOx = GET_HW_PORT(pin);
   const uint8_t pin_num = GET_HW_PIN_NUM(pin);
@@ -145,6 +146,7 @@ void USART_DBG_DataTxGeneric(const void * const USARTx, const char *data, unsign
 // =================================================================================================
 
 #define SPI_SCLK_DIV_2			(0<<3)
+
 #define DMA_CHAN(x)				(DMA_SxCR_CHSEL & ((x)<<25)) // 0x0E000000
 #define SPI1_DMA_CHAN			DMA_CHAN(3) // Ref.: STM32F401 Reference manual, sect.9.3.3, p.170
 #define SPI1_TX_GUARD_EN 1
@@ -189,105 +191,27 @@ uint8_t SPI1_ByteTRx(uint8_t data) {
 // BSD
 // =================================================================================================
 
-w25qxx_dev_t w25qxx_dev = {0};
-static W25QXX_RET_t w25qxx_spi_transaction_data_write_read(const void *cmd, uint32_t cmd_len, void *data_io, uint32_t data_io_len) {
-	//printf_dbg("%s(%p,%u,%p,%u):\r\n", __func__, cmd, cmd_len, data_io, data_io_len);
-
-	PinLo(W25QXX_PIN_CS);
-	do {
-		const void *buf_end;
-		buf_end = cmd + cmd_len;
-		while (cmd < buf_end) { SPI1_ByteTx(*(uint8_t *)cmd++); };
-
-		if (!data_io || !data_io_len) { break; };
-		buf_end = data_io + data_io_len;
-		while (data_io < buf_end) { *(uint8_t *)data_io = SPI1_ByteTRx(*(uint8_t *)data_io); ++data_io; };
-	} while (0);
-	PinHi(W25QXX_PIN_CS);
-
-	//printf_dbg("%s(): Done.\r\n", __func__);
-	return W25QXX_RET_SUCCESS;
-};
-static W25QXX_RET_t w25qxx_spi_transaction_data_write(const void *cmd, uint32_t cmd_len, const void *data_out, uint32_t data_out_len) {
-	//printf_dbg("%s(%p,%u,%p,%u):\r\n", __func__, cmd, cmd_len, data_out, data_out_len);
-
-	PinLo(W25QXX_PIN_CS);
-	do {
-		const void *buf_end;
-		buf_end = cmd + cmd_len;
-		while (cmd < buf_end) { SPI1_ByteTx(*(uint8_t *)cmd++); };
-
-		if (!data_out || !data_out_len) { break; };
-		buf_end = data_out + data_out_len;
-		while (data_out < buf_end) { SPI1_ByteTx(*(uint8_t *)data_out); ++data_out; };
-	} while (0);
-	PinHi(W25QXX_PIN_CS);
-
-	//printf_dbg("%s(): Done.\r\n", __func__);
-	return W25QXX_RET_SUCCESS;
-};
-static void w25qxx_init_io(void) {
-
-	SPI1_Init(SPI_SCLK_DIV_2);
-
-	Init_GPIO_AF(W25QXX_PIN_DI_IO0, (GPIO_MODE_AF_PP | GPIO_CLK_MAX), GPIO_AF_SPI1);
-	Init_GPIO_AF(W25QXX_PIN_DO_IO1, (GPIO_MODE_AF_OD | GPIO_CLK_MAX), GPIO_AF_SPI1);
-	Init_GPIO_AF(W25QXX_PIN_SCK,    (GPIO_MODE_AF_PP | GPIO_CLK_MAX), GPIO_AF_SPI1);
-	Init_GPIO_AF(W25QXX_PIN_CS,     (GPIO_MODE_OUT_PP| GPIO_CLK_MAX), 0);
-	PinHi(W25QXX_PIN_CS);
-
-	w25qxx_dev.spi_data_write_read = w25qxx_spi_transaction_data_write_read;
-	w25qxx_dev.spi_data_write = w25qxx_spi_transaction_data_write;
-};
-
-void delay_us(uint32_t microsec) {
-	// Waste some time and lower the load on memory bus (less r/w operations)
-	// @ 84Mhz 1 tick = 0.0119 us => 1 us =~ 42 'nop' operations, as it takes ~ 2 clock cycles to exec 'nop'
-
-	while (microsec--) {
-		__asm volatile (
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			/// 16
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			/// 32
-			"nop; nop; nop; nop\n"
-			"nop; nop; nop; nop\n"
-			"nop; nop;\n"
-			/// 42
-		);
-	};
-};
-void delay_ms(uint32_t millisec) { delay_us(millisec*1000); };
-
 uint8_t board_init(void) {
 
 	SystemCoreClockUpdate(); // optional
 	NVIC_SetPriorityGrouping(3); // optional
 
-	// Init periph clocking
-	RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN);
+	// Init GPIOs clocking
+	RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN);
 
 	Init_GPIO_AF(LED_BLUE, (GPIO_MODE_OUT_PP | GPIO_CLK_LOW), 0);
 
-	Init_USART1_DBG(1000000);
+	Init_USART1_DBG(USART1_BR);
 	Init_GPIO_AF(USART1_PIN_TX, (GPIO_MODE_AF_PP | GPIO_CLK_MAX),	GPIO_AF_USART1);
 	Init_GPIO_AF(USART1_PIN_RX, (GPIO_MODE_AF_OD | GPIO_CLK_MAX),	GPIO_AF_USART1);
 
-	w25qxx_init_io();
+	SPI1_Init(SPI_SCLK_DIV_2);
+	Init_GPIO_AF(W25QXX_PIN_DI_IO0, (GPIO_MODE_AF_PP | GPIO_CLK_MAX), GPIO_AF_SPI1);
+	Init_GPIO_AF(W25QXX_PIN_DO_IO1, (GPIO_MODE_AF_OD | GPIO_CLK_MAX), GPIO_AF_SPI1);
+	Init_GPIO_AF(W25QXX_PIN_SCK,    (GPIO_MODE_AF_PP | GPIO_CLK_MAX), GPIO_AF_SPI1);
+	Init_GPIO_AF(W25QXX_PIN_CS,     (GPIO_MODE_OUT_PP| GPIO_CLK_MAX), GPIO_PF);
+
+//	w25qxx_init_io();
 
 	return W25QXX_RET_SUCCESS;
 };

@@ -7,7 +7,8 @@ CC="${TOOLCHAIN_PATH}arm-none-eabi-gcc"
 OBJCOPY="${TOOLCHAIN_PATH}arm-none-eabi-objcopy"
 OO="${OPENOCD_PATH}openocd"
 
-DEFINES="-DSTM32F401xx -DW25QXX_DYNAMIC_OVERWRITE_BUFFER"
+#DEFINES="-DSTM32F401xx -DW25QXX_DYNAMIC_OVERWRITE_BUFFER -DW25QXX_DEBUG"
+DEFINES="-DSTM32F401xx"
 INCLUDES="-ICMSIS -I../../src"
 SOURCES="CMSIS/startup_stm32f401xc.s CMSIS/system_stm32f4xx.c ../../src/w25qxx.c bsd.c main.c"
 TARG_FLAGS="-mcpu=cortex-m4 -mthumb -mabi=aapcs -mfloat-abi=hard -mfpu=fpv4-sp-d16 -ffunction-sections -fdata-sections -fno-strict-aliasing -fshort-enums -fno-builtin -Wdouble-promotion -TCMSIS/STM32F401CC_FLASH.ld -Wl,--gc-sections -Wl,--print-memory-usage --specs=nano.specs -lc"
@@ -16,7 +17,7 @@ CFLAGS="-Os $TARG_FLAGS $DEFINES $INCLUDES $SOURCES"
 
 echo "Compiling..."
 #echo $CC $CFLAGS -o out.elf
-$CC $CFLAGS -o out.elf
+$CC $CFLAGS -o out.elf || exit 1
 
 echo "Converting..."
 #echo $OBJCOPY -O ihex out.elf out.hex

@@ -1,5 +1,6 @@
-#include "stdio.h"
-#include "stdint.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <stdarg.h>
 
 #include "../../src/w25qxx.h"
 //#include "intf_opi_w25qxx.h"
@@ -28,9 +29,17 @@ static char *bytes2str(const uint8_t *data, uint16_t data_len, char *buf, size_t
 	return buf_beg;
 };
 
+int printf_dbg(const char *restrict format, ...) {
+	va_list args;
+	va_start(args, format);
+	const int len = vprintf(format, args);
+	va_end(args);
+	return len;
+};
+
 static int w25qxx_test(void) {
 	int ret;
-	char buf[W25QXX_UID_LEN] = {0}; // W25QXX_UID_LEN == 8
+	char read_buf[W25QXX_UID_LEN] = {0}; // W25QXX_UID_LEN == 8
 
 	ret = w25qxx_init(&w25qxx_dev);
 	if (ret != W25QXX_RET_SUCCESS) { // W25QXX_RET_SUCCESS == 0
@@ -38,10 +47,10 @@ static int w25qxx_test(void) {
 		return ret;
 	};
 
-	ret = w25qxx_get_unique_id(&w25qxx_dev, buf);
+	ret = w25qxx_get_unique_id(&w25qxx_dev, read_buf);
 	if (ret) { printf("w25qxx_get_unique_id(): Failed with code: %02X (desc: '%s')\r\n", ret, w25qxx_ret2str(ret)); return ret; };
 	char uid_str[W25QXX_UID_LEN * 2 + 1] = {0};
-	printf("Chip 1 UID: '%s'\r\n", bytes2str(buf, W25QXX_UID_LEN, uid_str, sizeof(uid_str)));
+	printf("Chip 1 UID: '%s'\r\n", bytes2str(read_buf, W25QXX_UID_LEN, uid_str, sizeof(uid_str)));
 
 	w25qxx_info_t info;
 	ret = w25qxx_get_info(&w25qxx_dev, &info);
@@ -69,22 +78,29 @@ static int w25qxx_test(void) {
 		(info.driver_version >> 4) & 0xF, info.driver_version & 0xF
 	);
 
-	const unsigned int val_addr = 0x00000000;
+	const uint32_t addr = w25qxx_get_storage_capacity_bytes(&w25qxx_dev) - W25QXX_WRITE_BLOCK_SIZE;
+	const uint32_t val = 0x12345678;
+//	const uint32_t val = 0xABCDEF09;
 
-	/* NOTE: Orange Pi Zero has Macronix MX25L1606E spi flash chip installed, which is cheaper alternative to WINBOND.
-	         This library is curently aimed at running only w25qxx chips, which are not fully compatible with MACRONIX, so writing will not work.
+	ret = w25qxx_read_fast(&w25qxx_dev, addr, read_buf, sizeof(ret));
+	if (ret) { printf("w25qxx_read_fast(): Failed with code: %02X (desc: '%s')\n", ret, w25qxx_ret2str(ret));  return ret; };
+	ret = *(int *)read_buf;
+	printf("Chip 1 read data_pre: [%u bytes @ 0x%08X]: '%X'\n", sizeof(ret), addr, ret);
+
+	/* NOTE: Overwriting will not work due to hard-coded limitation of the spidev driver inside kernel (as of Oct 2022),
+	         which doesn't allow transferring more than 4095 bytes in one transaction (https://github.com/orangepi-xunlong/orangepi_h3_linux/blob/master/OrangePi-Kernel/linux-4.9/drivers/spi/spidev.c)
+	         AND current architecture of the library, which requires performing (5+4096) = 4101 bytes long transactions for overwriting sectors
 	         Nevertheless, initializing and reading works just fine, which is enough for this little demo.
 
-	const int val = 0x12345678;
-	ret = w25qxx_overwrite_verify(&w25qxx_dev, val_addr, &val, sizeof(val));
-	if (ret) { printf("w25qxx_overwrite_verify(): Failed with code: %02X (desc: '%s')\r\n", ret, w25qxx_ret2str(ret));  return ret; };
+	printf("Chip 1 writing data: [%u bytes @ 0x%08X]: '%X'... ", sizeof(val), addr, val);
+	ret = w25qxx_overwrite_verify(&w25qxx_dev, addr, &val, sizeof(val));
+	if (ret) { printf("w25qxx_overwrite_verify(): Failed with code: %02X (desc: '%s')\n", ret, w25qxx_ret2str(ret));  return ret; } else { printf("OK\n"); };
+
+	ret = w25qxx_read_fast(&w25qxx_dev, addr, read_buf, sizeof(ret));
+	if (ret) { printf("w25qxx_read_fast(): Failed with code: %02X (desc: '%s')\n", ret, w25qxx_ret2str(ret));  return ret; };
+	ret = *(int *)read_buf;
+	printf("Chip 1 read data_post: [%u bytes @ 0x%08X]: '%X'\n", sizeof(ret), addr, ret);
 	*/
-
-	ret = w25qxx_read_fast(&w25qxx_dev, val_addr, buf, sizeof(ret));
-	if (ret) { printf("w25qxx_read_fast(): Failed with code: %02X (desc: '%s')\r\n", ret, w25qxx_ret2str(ret));  return ret; };
-
-	ret = *(int *)buf;
-	printf("Chip 1 read data: [%u bytes @ 0x%08X]: %X\r\n", sizeof(ret), val_addr, ret);
 
 	return 0;
 };
@@ -123,9 +139,9 @@ int main(int argc, char *argv[]) {
 
 	puts("Testing spi flash chip...\n");
 	ret = w25qxx_test();
-	if (ret) { puts("Failed!"); };
+	if (ret) { puts("TEST: Failed!"); return 1; };
 
-	puts("DONE.");
+	puts("TEST: Done.");
 
 	return 0;
 };//main()

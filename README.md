@@ -19,6 +19,8 @@ Heavily optimized code size, improved execution speed, minimized chip access ins
 - Implemented selection of dynamic / static overwrite buffer (selected at compile time)
 - Simple interfacing for any platform (see [examples](./examples))
 - No external dependencies
+- Smart overwriting function: skips erase-write cycle for blocks containing the same data
+- Built-in verification of written data for detecting bad blocks
 
 ## Usage example
 

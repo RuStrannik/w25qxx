@@ -15,6 +15,7 @@
 
 #include "../../src/w25qxx.h"
 
+uint8_t w25qxx_ow_buf[W25QXX_SECTOR_SIZE];
 w25qxx_dev_t w25qxx_dev = {0};
 
 #define SPI_DATA_MAX_LEN	4095
@@ -93,27 +94,30 @@ static int spi_init(spi_dev_t *dev) {
 };
 
 static W25QXX_RET_t spi_data_write_read(const void *buf_out, uint32_t len_out, void *data_io, uint32_t data_io_len) {
+	//printf("%s(%p,%u,%p,%u): called\n", __func__, buf_out, len_out, data_io, data_io_len);
+
 	const uint8_t txn = 2;
-	const spi_ioc_transfer_t tr[2] = {
+	const spi_ioc_transfer_t tx_data[2] = {
 		{ .speed_hz = spi00.freq_hz, .tx_buf = (unsigned long)buf_out, .rx_buf =                      0, .len = len_out, },
 		{ .speed_hz = spi00.freq_hz, .tx_buf = (unsigned long)data_io, .rx_buf = (unsigned long)data_io, .len = data_io_len, },
 	};
 
-	const int ret = ioctl(spi00.fd, SPI_IOC_MESSAGE(txn), tr);
-	if (ret < 1) { fprintf(stderr, "ERROR: spi msg trx failed.\n"); return W25QXX_RET_ERR_IO_FAIL; };
+	const int ret = ioctl(spi00.fd, SPI_IOC_MESSAGE(txn), tx_data);
+	if (ret < 1) { fprintf(stderr, "ERROR: spi msg trx failed: %d\n", ret); return W25QXX_RET_ERR_IO_FAIL; };
 
 	return W25QXX_RET_ERR_NONE;
 };
 static W25QXX_RET_t spi_data_write(const void *cmd_buf, uint32_t cmd_len, const void *data_out, uint32_t data_out_len) {
+	//printf("%s(%p,%u,%p,%u): called\n", __func__, cmd_buf, cmd_len, data_out, data_out_len);
 
 	const uint8_t txn = 2;
-	const spi_ioc_transfer_t tr[2] = {
+	const spi_ioc_transfer_t tx_data[2] = {
 		{ .speed_hz = spi00.freq_hz, .tx_buf = (unsigned long)cmd_buf, .rx_buf = 0, .len = cmd_len, },
 		{ .speed_hz = spi00.freq_hz, .tx_buf = (unsigned long)data_out, .rx_buf = 0, .len = data_out_len, },
 	};
 
-	const int ret = ioctl(spi00.fd, SPI_IOC_MESSAGE(txn), &tr);
-	if (ret < 1) { fprintf(stderr, "ERROR: spi msg tx failed.\n"); return W25QXX_RET_ERR_IO_FAIL; };
+	const int ret = ioctl(spi00.fd, SPI_IOC_MESSAGE(txn), tx_data);
+	if (ret < 1) { fprintf(stderr, "ERROR: spi msg tx failed: %d\n", ret); return W25QXX_RET_ERR_IO_FAIL; };
 
 	return W25QXX_RET_ERR_NONE;
 };
@@ -126,6 +130,7 @@ int w25qxx_intf_init(uint8_t bus_id, uint8_t dev_id) {
 	ret = spi_init(&spi00);
 	if (ret) { return ret; };
 
+	w25qxx_dev.ow_buf = w25qxx_ow_buf;
 	w25qxx_dev.spi_data_write_read = spi_data_write_read;
 	w25qxx_dev.spi_data_write = spi_data_write;
 
