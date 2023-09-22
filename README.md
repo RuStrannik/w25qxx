@@ -1,7 +1,12 @@
 # W25Qxx Universal Driver v2.0
-
 [![License](./img/license_bage_MIT.svg)](./LICENSE)
 <!--[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](./LICENSE)-->
+
+---
+
+09/2023 NOTE: I am quite sick of Microsoft stuffing their policies down my throat through GitHub, so I decided to end all my collaboration with them and use combination of [self-hosted](https://git.serenity-island.net/) and [public](https://codeberg.org/nik-sie/w25qxx) git repositories.
+
+---
 
 Modern rewrite of popular library.<br/>
 Complete [example implementations](./examples) available for STM32F401 (BlackPill) and Orange PI Zero platforms.  
@@ -63,8 +68,3 @@ int w25qxx_test(void) {
 };
 
 ```
-
-## TODO
-
-- [ ] Chip access via SPI-dual / SPI-quad / Quad-SPI interfaces implemented but not tested
-
